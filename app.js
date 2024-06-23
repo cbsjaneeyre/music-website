@@ -2,10 +2,67 @@ const createError = require('http-errors')
 const express = require('express')
 const path = require('path')
 const logger = require('morgan')
+const passport = require('passport')
+const LocalStrategy = require('passport-local')
+const passportJWT = require('passport-jwt')
+const session = require('express-session')
+
+const FileStore = require('session-file-store')(session)
+
+const JWTStrategy = passportJWT.Strategy;
 
 const mainRouter = require('./routes/')
 
 const app = express()
+
+app.use(session({
+  store: new FileStore(),
+  secret: 'secret',
+  resave: false,
+  saveUninitialized: true
+}))
+
+app.use(passport.initialize())
+app.use(passport.session())
+
+const admin = {
+  id: '1',
+  email: 'test@email.com',
+  password: 'qwerty1234'
+}
+
+passport.serializeUser((admin, done) => {
+  done(null, admin.id)
+})
+
+passport.deserializeUser((id, done) => {
+  const _user = admin.id === id ? admin : false
+  done(null, _user)
+})
+
+passport.use(new LocalStrategy({
+  usernameField: 'email'
+}, (email, password, done) => {
+  if (email === admin.email && password === admin.password) {
+    return done(null, admin)
+  } else {
+    return done(null, false)
+  }
+}))
+
+passport.use(new JWTStrategy({
+  jwtFromRequest: passportJWT.ExtractJwt.fromAuthHeaderAsBearerToken(),
+  secretOrKey: 'admin_secret'
+// eslint-disable-next-line camelcase
+}, (jwt_payload, done) => {
+  if (admin.id === jwt_payload.user._id) {
+    return done(null, admin)
+  } else {
+    return done(null, false, {
+      message: 'token is not matched'
+    })
+  }
+}))
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'))
