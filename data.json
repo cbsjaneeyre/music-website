@@ -63,5 +63,14 @@
       "name": "Вино вдохновение",
       "price": 600
     }
+  ],
+  "messages": [],
+  "artist": [
+    {
+      "age": "1",
+      "concerts": "1",
+      "cities": "1",
+      "years": "1"
+    }
   ]
 }

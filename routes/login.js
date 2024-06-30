@@ -1,39 +1,27 @@
 const express = require('express')
-const passport = require('passport')
-const jwt = require('passport-jwt')
 const router = express.Router()
 
 router.get('/', (req, res, next) => {
-  res.render('pages/login', { title: 'SigIn page' })
+  const msglogin = req.flash('msg')[0]
+
+  res.render('pages/login', { 
+    title: 'SigIn page', 
+    msglogin 
+  })
 })
 
 router.post('/', (req, res, next) => {
-  // TODO: Реализовать функцию входа в админ панель по email и паролю
-  passport.authenticate('local', (error, admin) => {
-    if (error) {
-      return next(error)
-    }
+  // TODO: Реализовать функцию входа в админ панель по email и паролю.
 
-    if (!admin) {
-      return res.send('wrong email or password')
-    }
+  const { email, password } = req.body
 
-    req.login(admin, () => {
-      const body = { _id: admin.id, email: admin.email }
-      const token = jwt.sign({ admin: body }, 'admin_secret')
-
-      return res.json({ token })
-    })
-  })(req, res, next)
-})
-
-router.get('/', passport.authenticate('jwt', { session: false }), (res, req) => {
-  if (!req.admin) {
-    res.json({
-      username: 'notAdmin'
-    })
+  if (email === 'admin@example.com' && password === 'admin123') {
+    req.session.isLogged = true
+    res.redirect('/admin')
+  } else {
+    req.flash('msg', 'something went wrong!')
+    res.redirect('/login')
   }
-  res.json(req.admin)
 })
 
 module.exports = router

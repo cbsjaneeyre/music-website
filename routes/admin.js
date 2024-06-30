@@ -3,12 +3,20 @@ const router = express.Router()
 const formidable = require('formidable')
 const fs = require('fs')
 const path = require('path')
-const db = require('../models/db')()
+const db = require('../db')
 
 router.get('/', (req, res, next) => {
   // TODO: Реализовать, подстановку в поля ввода формы 'Счетчики'
   // актуальных значений из сохраненых (по желанию)
-  res.render('pages/admin', { title: 'Admin page' })
+
+  const msgskill = req.flash('msgskill')[0]
+  const msgfile = req.flash('msgfile')[0]
+
+  res.render('pages/admin', { 
+    title: 'Admin page',
+    msgskill,
+    msgfile
+  })
 })
 
 router.post('/skills', (req, res, next) => {
@@ -20,15 +28,17 @@ router.post('/skills', (req, res, next) => {
     в переменной cities - Максимальное число городов в туре
     в переменной years - Лет на сцене в качестве скрипача
   */
+ 
+  const { age, concerts, cities, years } = req.body
 
-  res.render('pages/admin', {
-    age: db.stores.file.store,
-    concerts: db.stores.file.store,
-    cities: db.stores.file.store,
-    years: db.stores.file.store
-  })
-
-  res.send('Реализовать сохранение нового объекта со значениями блока скиллов')
+  if (!age || !concerts || !cities || !years) {
+    req.flash('msgskill', 'fill in all the blanks!')
+    res.redirect('/admin')
+  } else {
+    db.get('artist').push({ age, concerts, cities, years }).write()
+    req.flash('msgskill', 'done!')
+    res.redirect('/admin')
+  }
 })
 
 router.post('/upload', (req, res, next) => {
@@ -39,12 +49,6 @@ router.post('/upload', (req, res, next) => {
     в переменной price - Цена товара
     На текущий момент эта информация хранится в файле data.json  в массиве products
   */
-
-  res.render('pages/admin', {
-    photo: db.stores.file.store,
-    name: db.stores.file.store,
-    price: db.stores.file.store
-  })
 
   const form = new formidable.IncomingForm()
   const upload = path.join(__dirname, '../public', 'upload')
@@ -65,7 +69,8 @@ router.post('/upload', (req, res, next) => {
 
     if (valid.error) {
       fs.unlinkSync(files.photo.path)
-      return res.redirect('pages/admin')
+      req.flash('msgfile', 'error')
+      return res.redirect('/admin')
     }
 
     const fileName = path.join(upload, files.photo.name)
@@ -81,21 +86,35 @@ router.post('/upload', (req, res, next) => {
 
       db.set(fields.name, dir)
       db.save()
-      res.redirect('pages/admin')
+      req.flash('msgfile', 'success!')
+      res.redirect('/admin')
     })
   })
 
   const validation = (fields, files) => {
     if (files.photo.name === '' || files.photo.size === 0) {
-      return { status: 'the photo is not uploaded!', error: true }
+      req.flash('msgfile', 'the photo is not uploaded!')
+      return res.redirect('/admin')
     }
     if (!fields.name) {
-      return { status: 'no description of the photo is provided!', error: true }
+      req.flash('msgfile', 'no description of the photo is provided!')
+      return res.redirect('/admin')
     }
-    return { status: 'ok', error: false }
+
+    req.flash('msgfile', 'done!')
+    res.redirect('/admin')
   }
 
-  // res.send('Реализовать сохранения объекта товара на стороне сервера')
+  const { name, price } = req.body
+
+  if (!name || !price ) {
+    req.flash('msgfile', 'fill in all the blanks!')
+    res.redirect('/admin')
+  } else {
+    db.get('products').push({ name, price }).write()
+    req.flash('msgfile', 'done!')
+    res.redirect('/admin')
+  }
 })
 
 module.exports = router
