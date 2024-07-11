@@ -12,7 +12,7 @@ router.get('/', (req, res, next) => {
   const msgskill = req.flash('msgskill')[0]
   const msgfile = req.flash('msgfile')[0]
 
-  res.render('pages/admin', { 
+  res.render('pages/admin', {
     title: 'Admin page',
     msgskill,
     msgfile
@@ -28,15 +28,20 @@ router.post('/skills', (req, res, next) => {
     в переменной cities - Максимальное число городов в туре
     в переменной years - Лет на сцене в качестве скрипача
   */
- 
-  const { age, concerts, cities, years } = req.body
 
-  if (!age || !concerts || !cities || !years) {
-    req.flash('msgskill', 'fill in all the blanks!')
+  const data = req.body
+
+  if (!data) {
+    req.flash('msgskill', 'fill in the blanks!')
     res.redirect('/admin')
   } else {
-    db.get('artist').push({ age, concerts, cities, years }).write()
-    req.flash('msgskill', 'done!')
+    Object.keys(data).forEach((item, i) => {
+      if (data[item]) {
+        db.get(`skills[${i}]`).set('number', data[item]).write()
+      }
+    })
+
+    req.flash('msgskill', 'success!')
     res.redirect('/admin')
   }
 })
@@ -51,69 +56,61 @@ router.post('/upload', (req, res, next) => {
   */
 
   const form = new formidable.IncomingForm()
-  const upload = path.join(__dirname, '../public', 'upload')
-  console.log(upload)
+  const upload = path.join(__dirname, '../uploads')
 
   if (!fs.existsSync(upload)) {
     fs.mkdirSync(upload)
   }
 
-  form.uploadDir = path.join(process.cwd(), upload)
+  form.uploadDir = upload
 
   form.parse(req, (error, fields, files) => {
     if (error) {
       return next(error)
     }
 
-    const valid = validation(fields, files)
+    const file = files.photo[0]
+
+    const valid = validation(fields, file)
 
     if (valid.error) {
-      fs.unlinkSync(files.photo.path)
-      req.flash('msgfile', 'error')
+      fs.unlinkSync(file.filepath)
+
+      req.flash('msgfile', valid.error)
       return res.redirect('/admin')
     }
 
-    const fileName = path.join(upload, files.photo.name)
+    const fileName = path.join(upload, file.originalFilename)
 
 
-    fs.rename(files.photo.path, fileName, (error) => {
+    fs.rename(file.filepath, fileName, (error) => {
       if (error) {
         console.error(error.message)
         return
       }
 
-      const dir = fileName.substr(fileName.indexOf('\\'))
+      db.get('products')
+        .push({
+          src: path.join('./', file.originalFilename),
+          name: fields.name[0],
+          price: fields.price[0]
+        })
+        .write()
 
-      db.set(fields.name, dir)
-      db.save()
-      req.flash('msgfile', 'success!')
+      req.flash('msgfile', valid.status)
       res.redirect('/admin')
     })
   })
 
   const validation = (fields, files) => {
-    if (files.photo.name === '' || files.photo.size === 0) {
-      req.flash('msgfile', 'the photo is not uploaded!')
-      return res.redirect('/admin')
+    if (files.originalFilename === '' || files.size === 0) {
+      return { error: 'the photo is not uploaded!' }
     }
-    if (!fields.name) {
-      req.flash('msgfile', 'no description of the photo is provided!')
-      return res.redirect('/admin')
+    if (!fields.name[0]) {
+      return { error: 'no description of the photo is provided!' }
     }
 
-    req.flash('msgfile', 'done!')
-    res.redirect('/admin')
-  }
-
-  const { name, price } = req.body
-
-  if (!name || !price ) {
-    req.flash('msgfile', 'fill in all the blanks!')
-    res.redirect('/admin')
-  } else {
-    db.get('products').push({ name, price }).write()
-    req.flash('msgfile', 'done!')
-    res.redirect('/admin')
+    return { error: null, status: 'success!' }
   }
 })
 

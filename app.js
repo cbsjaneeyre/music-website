@@ -6,8 +6,6 @@ const session = require('express-session')
 const flash = require('connect-flash')
 const cookieParser = require('cookie-parser')
 
-const FileStore = require('session-file-store')(session)
-
 const mainRouter = require('./routes/')
 
 const app = express()
@@ -15,9 +13,8 @@ const app = express()
 app.use(cookieParser('keyboard cat'));
 app.use(session({
   cookie: { maxAge: 60000 },
-  store: new FileStore(),
   secret: 'secret',
-  resave: false,
+  resave: true,
   saveUninitialized: true
 }))
 app.use(flash());
